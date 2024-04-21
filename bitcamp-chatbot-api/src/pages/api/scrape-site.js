@@ -109,7 +109,7 @@ console.log('Assistant created successfully:', assistantData);
 
 
     } catch (error) {
-        res.status(500).json({ error: 'Failed to scrape site' });
+        res.status(500).json({ error: error.message });
     }
 }
 
