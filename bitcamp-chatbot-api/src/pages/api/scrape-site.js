@@ -140,8 +140,6 @@ async function checkVectorSpaceStatus(vectorSpaceId,apiKey) {
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-const { chromium } = require('playwright');
-
 async function scrape(url, num = 0, visited = new Set(), allText = []) {
     if (num >= 5) {
         return allText;
@@ -152,28 +150,45 @@ async function scrape(url, num = 0, visited = new Set(), allText = []) {
     }
     visited.add(url);
 
-    const browser = await chromium.launch();
-    const page = await browser.newPage();
-
     try {
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
-        const texts = await page.evaluate(() => document.body.innerText.trim());
-        console.log('-----------' + num + '-------------');
-        allText.push(texts);
-
-        const urls = await page.evaluate(() => {
-            const links = Array.from(document.querySelectorAll('a'));
-            return links.slice(0, 5).map(a => a.href);
-        });
+        const scrapingBeeApiKey = 'YG6SG2O3ES26IL897ZCGD5HIIJ9FXWPTUGBZUKQB9U323EMDBB6M5IKTW2U1FUAGZOS8L1DPZMYCMV1O';
+        const scrapingBeeUrl = 'https://app.scrapingbee.com/api/v1/';
         
-        for (const link of urls) {
-            allText = await scrape(link, num + 2, visited, allText);
+        const response = await axios.get(scrapingBeeUrl, {
+            params: {
+                api_key: scrapingBeeApiKey,
+                url: url
+            }
+        });
+
+        if (response.status === 200) {
+            const htmlContent = response.data;
+            console.log('htmlContent:',htmlContent);
+            const $ = cheerio.load(htmlContent);
+
+            // Extract text from the current page
+            const text = $('body').text().trim();
+            console.log('-----------' + num + '-------------');
+            allText.push(text);
+
+            // Extract links from the current page and explore recursively
+            const links = $('a').map((i, el) => $(el).attr('href')).get().slice(0, 5);
+            for (const link of links) {
+                allText = await scrape(link, num + 2, visited, allText);
+            }
+        } else {
+            console.error('ScrapingBee request failed:', response);
         }
     } catch (error) {
-        // Handle error
-    } finally {
-        await browser.close();
+        console.error('Error fetching page:', error.message);
     }
 
     return allText;
 }
+
+// Example usage:
+scrape('https://demo.syntag.org').then(allText => {
+    console.log('All text:', allText);
+}).catch(error => {
+    console.error('Error:', error);
+});
