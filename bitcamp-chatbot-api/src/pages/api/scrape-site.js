@@ -232,7 +232,7 @@ async function scrape(url, num = 0, visited = new Set(), allText = []) {
     visited.add(url);
 
     try {
-        const scrapingBeeApiKey = 'YG6SG2O3ES26IL897ZCGD5HIIJ9FXWPTUGBZUKQB9U323EMDBB6M5IKTW2U1FUAGZOS8L1DPZMYCMV1O';
+        const scrapingBeeApiKey = 'W23HMVC9FAGBO5C4ONT4NQFADLNI8Y7F66N12Q9NI78PR1GWQ9FGWV5I32A9ETZGBOC4QYMH4GZ1MLMW';
         const scrapingBeeUrl = 'https://app.scrapingbee.com/api/v1/';
         
         const response = await axios.get(scrapingBeeUrl, {
