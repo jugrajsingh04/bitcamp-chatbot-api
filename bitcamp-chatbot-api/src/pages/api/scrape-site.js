@@ -1,5 +1,5 @@
-const puppeteer = require('puppeteer');
 const express = require('express');
+export const maxDuration = 300; // This function can run for a maximum of 5 seconds
 
 // Global browser instance
 let browser;
@@ -14,6 +14,31 @@ export default async function handler(req, res) {
     }
 
     try {
+        const apiKey = 's'+'k-'+'pro'+'j-o9gEXbYpRLElql9eQ3L9T3BlbkFJNpERazGqwj3YUKu8rDNj';
+
+        // a vcStore exists already
+
+        const vcStore = await find_vector(`${url}VectorStore`,apiKey);
+        if (vcStore) {
+            console.log('Vector store found:', vcStore);
+
+            const assistant = await find_assistant(vcStore.id,apiKey);
+            if (assistant) {
+                console.log('Assistant found:', assistant);
+                return res.status(200).json({ assistantId: assistant.id });
+            }
+            else {
+                console.log('Assistant not found for vector store:', vcStore);
+            }
+
+        }
+        else {
+            console.log('Vector store not found:', vcStore);
+        }
+
+
+
+
         console.log('Scraping:', url);
         const result = await scrape(url);  // Make sure scrape function is defined or imported
         //res.status(200).send(result);
@@ -27,7 +52,6 @@ export default async function handler(req, res) {
     formData.append('purpose', 'assistants'); // Use 'assistants' or 'fine-tune' based on your requirement
 
     // Step 3: Make the Fetch request to upload the file
-    const apiKey = 's'+'k-'+'pro'+'j-o9gEXbYpRLElql9eQ3L9T3BlbkFJNpERazGqwj3YUKu8rDNj';
     const fileUploadResponse = await fetch('https://api.openai.com/v1/files', {
             method: 'POST',
             headers: {
@@ -140,6 +164,61 @@ async function checkVectorSpaceStatus(vectorSpaceId,apiKey) {
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+async function find_vector(name, apiKey) {
+    try {
+        const response = await axios.get('https://api.openai.com/v1/vector_stores', {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'OpenAI-Beta': 'assistants=v2'
+            }
+        });
+
+        if (response.status !== 200) {
+            throw new Error(`Failed to fetch vector stores. Status: ${response.status}`);
+        }
+
+        const vectorStores = response.data.data;
+        const foundVector = vectorStores.find(store => store.name === name);
+
+        return foundVector; // Returns undefined if not found
+    } catch (error) {
+        console.error('Error finding vector store:', error.message);
+        throw error; // Re-throw the error for handling at higher level
+    }
+}
+
+
+async function find_assistant(assistantId, apiKey) {
+    try {
+        const response = await axios.get('https://api.openai.com/v1/assistants', {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'OpenAI-Beta': 'assistants=v2'
+            }
+        });
+
+        if (response.status !== 200) {
+            throw new Error(`Failed to fetch assistants. Status: ${response.status}`);
+        }
+
+        const assistants = response.data.data;
+        console.log('Assistants:', assistants);
+        const foundAssistant = assistants.find(assistant => {
+            const toolResources = assistant.tool_resources;
+            if (toolResources && toolResources.file_search && toolResources.file_search.vector_store_ids) {
+                return toolResources.file_search.vector_store_ids.includes(assistantId);
+            }
+            return false;
+        });
+
+        return foundAssistant; // Returns undefined if not found
+    } catch (error) {
+        console.error('Error finding assistant:', error.message);
+        throw error; // Re-throw the error for handling at higher level
+    }
+}
 async function scrape(url, num = 0, visited = new Set(), allText = []) {
     if (num >= 5) {
         return allText;
@@ -186,9 +265,10 @@ async function scrape(url, num = 0, visited = new Set(), allText = []) {
     return allText;
 }
 
+
 // Example usage:
-scrape('https://demo.syntag.org').then(allText => {
-    console.log('All text:', allText);
-}).catch(error => {
-    console.error('Error:', error);
-});
+// scrape('https://demo.syntag.org').then(allText => {
+//     console.log('All text:', allText);
+// }).catch(error => {
+//     console.error('Error:', error);
+// });
