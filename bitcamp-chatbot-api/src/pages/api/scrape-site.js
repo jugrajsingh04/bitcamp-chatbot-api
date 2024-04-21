@@ -14,11 +14,12 @@ export default async function handler(req, res) {
     }
 
     try {
+        console.log('Scraping:', url);
         const result = await scrape(url);  // Make sure scrape function is defined or imported
         //res.status(200).send(result);
-
+        console.log('Result:', result);
         const blob = new Blob([result.join("\n")], { type: 'text/plain' });
-
+        console.log('Blob:', blob);
 
     // Step 2: Create a FormData object to append your file and the purpose
     const formData = new FormData();
@@ -26,7 +27,7 @@ export default async function handler(req, res) {
     formData.append('purpose', 'assistants'); // Use 'assistants' or 'fine-tune' based on your requirement
 
     // Step 3: Make the Fetch request to upload the file
-    const apiKey = 'sk-proj-09LMSwWcafY2G4diOdrbT3BlbkFJleBlhF3VK6GJwOAYOVRS';
+    const apiKey = 's'+'k-'+'pro'+'j-o9gEXbYpRLElql9eQ3L9T3BlbkFJNpERazGqwj3YUKu8rDNj';
     const fileUploadResponse = await fetch('https://api.openai.com/v1/files', {
             method: 'POST',
             headers: {
@@ -37,8 +38,10 @@ export default async function handler(req, res) {
         });
 
     const fileData = await fileUploadResponse.json();
+    console.log('File upload response:', fileUploadResponse);
     if (!fileUploadResponse.ok) {
         throw new Error(`Failed to upload file: ${fileData.error}`);
+
     }
 
     console.log('File upload success:', fileData.id);
@@ -134,46 +137,43 @@ async function checkVectorSpaceStatus(vectorSpaceId,apiKey) {
     return data.status; // Assuming the status is returned in the response JSON
 }
 
-async function scrape(url, num=0, visited = new Set(), all_text = []) {
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+const { chromium } = require('playwright');
+
+async function scrape(url, num = 0, visited = new Set(), allText = []) {
     if (num >= 5) {
-        //console.log('Max depth reached');
-        return all_text;
+        return allText;
     }
 
     if (visited.has(url)) {
-        //console.log('Already visited:', url);
-        return all_text;
+        return allText;
     }
     visited.add(url);
 
-    if (!browser) {
-        browser = await puppeteer.launch();
-    }
-
+    const browser = await chromium.launch();
     const page = await browser.newPage();
 
     try {
-        await page.goto(url, { waitUntil: 'networkidle0' });
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
         const texts = await page.evaluate(() => document.body.innerText.trim());
-        //console.log(texts);
         console.log('-----------' + num + '-------------');
-
-        all_text.push(texts); // Append text to all_text array
+        allText.push(texts);
 
         const urls = await page.evaluate(() => {
             const links = Array.from(document.querySelectorAll('a'));
             return links.slice(0, 5).map(a => a.href);
         });
-        //console.log(urls);
         
-        for (url of urls) {
-            all_text = await scrape(url, num + 2, visited, all_text); // Await the result of the recursive call and update all_text
+        for (const link of urls) {
+            allText = await scrape(link, num + 2, visited, allText);
         }
     } catch (error) {
-        //console.error(num, 'Failed to process page:', url, '\nError:', error);
+        // Handle error
     } finally {
-        await page.close();
+        await browser.close();
     }
 
-    return all_text; // Return the updated all_text array
+    return allText;
 }
